@@ -48,10 +48,10 @@
     (setq native-comp-deferred-compilation t)
     (add-to-list 'native-comp-eln-load-path (expand-file-name "eln-cache/" user-emacs-directory))
     (setq package-native-compile t)))
-
 ;; Load main config file "./config.org"
 (require 'org)
 (org-babel-load-file (expand-file-name (concat user-emacs-directory "config.org")))
+
 
 (provide 'init)
 ;;; init.el ends here

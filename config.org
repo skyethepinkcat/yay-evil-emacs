@@ -1,4 +1,4 @@
-#+Title: Yay-Evil distro by Ian Y.E. Pan
+#+TITLE: Yay-Evil distro by Ian Y.E. Pan
 #+Author: Ian Y.E. Pan
 #+Date: 2019
 Welcome! This Emacs "distro" is based on my personal Emacs
@@ -8,9 +8,7 @@ manner, and I've documented as detailed as possible what each code
 snippet does in this file.
 * Settings without corresponding packages
 Clean up the UI and enhance some basic defaults defined in "C Source
-Code". The variable ~ian/indent-width~ controls the default
-indentation across various programming modes. The default is 4, you
-can change this variable to 2 or any other indentation width you
+Code". The variable ~ian/indent-width~ controls the default indentation across various programming modes. The default is 4, you can change this variable to 2 or any other indentation width you
 prefer, and the change will be made across all programming language
 modes including C, C++, Java, Python etc. (Exception: JavaScript
 defaults to 2-space indent, you can still set it to any other
@@ -19,6 +17,7 @@ indentation width you prefer in the ~web-mode~ section.)
   (use-package emacs
     :preface
     (defvar ian/indent-width 4) ; change this value to your preferred width
+    (defvar skye/indent-width 2) ; change this value to your preferred width
     :config
     (setq frame-title-format '("Yay-Evil") ; Yayyyyy Evil!
           ring-bell-function 'ignore       ; minimize distraction
@@ -36,7 +35,7 @@ indentation width you prefer in the ~web-mode~ section.)
 
     ;; Always use spaces for indentation
     (setq-default indent-tabs-mode nil
-                  tab-width ian/indent-width)
+                  tab-width skye/indent-width)
 
     ;; Omit default startup screen
     (setq inhibit-startup-screen t))
@@ -131,7 +130,7 @@ the value depending on the language as well.
   (use-package cc-vars
     :ensure nil
     :config
-    (setq-default c-basic-offset ian/indent-width)
+    (setq-default c-basic-offset skye/indent-width)
     (setq c-default-style '((java-mode . "java")
                             (awk-mode . "awk")
                             (other . "k&r"))))
@@ -235,16 +234,34 @@ Normally, we need to add ~:ensure t~ to tell ~use-package~ to download packages 
 ** GUI enhancements
 *** Load custom theme
 #+BEGIN_SRC emacs-lisp
-  (add-to-list 'custom-theme-load-path (concat user-emacs-directory "themes/"))
-  (load-theme 'wilmersdorf t) ; an orginal theme created by me.
+  (use-package doom-themes
+    :config
+    ;; Global settings (defaults)
+    (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
+          doom-themes-enable-italic t) ; if nil, italics is universally disabled
+    (load-theme 'doom-dracula t)
+
+    ;; Enable flashing mode-line on errors
+    (doom-themes-visual-bell-config)
+    ;; Enable custom neotree theme (all-the-icons must be installed!)
+                                          ; (doom-themes-neotree-config)
+    ;; or for treemacs users
+                                          ;(setq doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
+                                          ; (doom-themes-treemacs-config)
+    ;; Corrects (and improves) org-mode's native fontification.
+    (doom-themes-org-config))
 #+END_SRC
+
+#+RESULTS:
+: t
+
 *** Dashboard welcome page
 #+BEGIN_SRC emacs-lisp
   (use-package dashboard
     :config
     (dashboard-setup-startup-hook)
     (setq dashboard-startup-banner 'logo
-          dashboard-banner-logo-title "Yay Evil!"
+          dashboard-banner-logo-title "Skyenetmacs"
           dashboard-items nil
           dashboard-set-footer nil))
 #+END_SRC
@@ -260,28 +277,25 @@ sequences (e.g. ~\n, \t~).
 #+END_SRC
 ** Vi keybindings
 I personally find Vi(m) bindings to be the most efficient way of
-editing text (especially code). I also changed the default ~:q~ and
+editing text (especially code). +I also changed the default ~:q~ and
 ~:wq~ to be killing current buffer, instead of killing the frame or
-subsequently killing Emacs.
+subsequently killing Emacs.+ I find this functionality very annoying
+so I changed it back.
 #+BEGIN_SRC emacs-lisp
+  (use-package undo-fu)
   (use-package evil
     :diminish undo-tree-mode
     :init
     (setq evil-want-C-u-scroll t
           evil-want-keybinding nil
+          evil-undo-system 'undo-fu
+          evil-disable-insert-state-bindings t
           evil-shift-width ian/indent-width)
     :hook (after-init . evil-mode)
-    :preface
-    (defun ian/save-and-kill-this-buffer ()
-      (interactive)
-      (save-buffer)
-      (kill-this-buffer))
     :config
     (with-eval-after-load 'evil-maps ; avoid conflict with company tooltip selection
       (define-key evil-insert-state-map (kbd "C-n") nil)
-      (define-key evil-insert-state-map (kbd "C-p") nil))
-    (evil-ex-define-cmd "q" #'kill-this-buffer)
-    (evil-ex-define-cmd "wq" #'ian/save-and-kill-this-buffer))
+      (define-key evil-insert-state-map (kbd "C-p") nil)))
 #+END_SRC
 Evil-collection covers more parts of Emacs that the original Evil
 doesn't support (e.g. Packages buffer, eshell, calendar etc.)
@@ -334,7 +348,46 @@ purpose.
 
   (use-package flx-ido :config (flx-ido-mode +1))
 #+END_SRC
+** Note Taking
+*** Org Roam
+#+BEGIN_SRC emacs-lisp
+  (use-package org-roam :config
+    (setq org-roam-directory "~/Notes/")
+    (org-roam-db-autosync-mode)
+    (define-key mode-specific-map (kbd "o r") 'org-roam-node-find)
+    (define-key mode-specific-map (kbd "o c") 'org-roam-capture)
+    (define-key mode-specific-map (kbd "o i") 'org-id-get-create)
+    (define-key mode-specific-map (kbd "o a") 'org-agenda)
+    (define-key org-mode-map (kbd "C-c r n") 'org-roam-capture)
+    (setq org-roam-capture-templates '(
+                                       ("d" "default" plain "%?" :target
+                                        (file+head "${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
+                                        :unnarrowed t)
+                                       ("p" "private" plain "%?" :target
+                                        (file+head "${slug}.org.gpg" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
+                                        :unnarrowed t)
+                                       ("r" "reminder" entry "** TODO %?\n%a" :target
+                                        (file+olp "todo.org.gpg" ("reminders"))
+                                        :unnarrowed nil)
+                                       ))
+    (setq org-clock-persist t)
+    (org-clock-persistence-insinuate)
+    )
+
+#+END_SRC
+*** Agenda
+#+begin_src emacs-lisp
+  (setq org-agenda-files (list org-roam-directory))
+  (setq org-agenda-file-regexp "\\`[^.].*\\.org\\(\\.gpg\\)?\\'")
+#+end_src
+
 ** Programming language support and utilities
+*** Org Babel
+#+BEGIN_SRC emacs-lisp
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((scheme . t)))
+#+END_SRC
 *** Company for auto-completion
 Use ~C-n~ and ~C-p~ to navigate the tooltip.
 #+BEGIN_SRC emacs-lisp
@@ -360,17 +413,15 @@ A modern on-the-fly syntax checking extension -- absolute essential
 Some minimal org mode tweaks: org-bullets gives our headings (h1, h2,
 h3...) a more visually pleasing look.
 #+BEGIN_SRC emacs-lisp
-  (use-package org
-    :hook ((org-mode . visual-line-mode)
-           (org-mode . org-indent-mode)))
-
   (use-package org-bullets :hook (org-mode . org-bullets-mode))
 #+END_SRC
 *** Useful major modes
 Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/TSX/JSON.
 #+BEGIN_SRC emacs-lisp
+  (use-package geiser-racket :ensure t)
   (use-package markdown-mode
     :hook (markdown-mode . visual-line-mode))
+  (use-package quack)
 
   (use-package web-mode
     :mode (("\\.html?\\'" . web-mode)
@@ -408,4 +459,35 @@ Provides us with hints on available keystroke combinations.
   (use-package exec-path-from-shell
     :config (when (memq window-system '(mac ns x))
               (exec-path-from-shell-initialize)))
+#+END_SRC
+*** Yaml Mode
+#+BEGIN_SRC emacs-lisp
+(use-package yaml-mode)
+(use-package puppet-mode)
+#+END_SRC
+*** Dark/light handling
+#+BEGIN_SRC emacs-lisp
+  (defun +theme-dark ()
+  (load-theme 'doom-dracula t))
+  (defun +theme-light ()
+  (load-theme 'doom-solarized-light t))
+
+  (defun theme--handle-dbus-event (a setting values)
+    "Handler for FreeDesktop theme changes."
+    (when (string= setting "ColorScheme")
+      (let ((scheme (car values)))
+        (cond
+         ((string-match-p "Dark" scheme)
+          (+theme-dark)) ;; my custom function that sets a dark theme
+         ((string-match-p "Light" scheme)
+          (+theme-light)) ;; 1000 internet points to whoever guesses what this does
+         (t (message "I don't know how to handle scheme: %s" scheme))))))
+
+  (require 'dbus)
+  (dbus-register-signal :session
+                        "org.freedesktop.portal"
+                        "/org/freedesktop/portal/desktop"
+                        "org.freedesktop.impl.portal.Settings"
+                        "SettingChanged"
+                        #'theme--handle-dbus-event)
 #+END_SRC
