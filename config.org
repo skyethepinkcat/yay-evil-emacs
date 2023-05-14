@@ -56,8 +56,10 @@ indentation width you prefer in the ~web-mode~ section.)
       (other-window 1))
     :config
     (global-set-key (kbd "C-x 2") #'ian/split-and-follow-horizontally)
-    (global-set-key (kbd "C-x 3") #'ian/split-and-follow-vertically))
+    (global-set-key (kbd "C-x 3") #'ian/split-and-follow-vertically)
+    (global-set-key (kbd "C-x h") #'ian/split-and-follow-horizontally))
 #+END_SRC
+
 * Configuration for built-in packages
 Since we're using use-package as our package management system, we
 might as well try to organize under the same syntax as much as
@@ -420,12 +422,24 @@ A modern on-the-fly syntax checking extension -- absolute essential
 #+BEGIN_SRC emacs-lisp
   (use-package flycheck :config (global-flycheck-mode +1))
 #+END_SRC
+*** LanguageTool
+A tool to check grammar and such things, very useful if you're using emacs for essays.
+
+#+begin_src emacs-lisp
+    (setq langtool-java-classpath
+        "/usr/share/languagetool:/usr/share/java/languagetool/*")
+    (require 'langtool)
+
+
+#+end_src
+
 *** Org Mode
 Some minimal org mode tweaks: org-bullets gives our headings (h1, h2,
 h3...) a more visually pleasing look.
 #+BEGIN_SRC emacs-lisp
   (use-package org-bullets :hook (org-mode . org-bullets-mode))
 #+END_SRC
+
 *** Useful major modes
 Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/TSX/JSON.
 #+BEGIN_SRC emacs-lisp
