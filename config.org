@@ -433,9 +433,11 @@ A modern on-the-fly syntax checking extension -- absolute essential
 A tool to check grammar and such things, very useful if you're using emacs for essays.
 
 #+begin_src emacs-lisp
+  (when (or (file-directory-p "/usr/share/languagetool") (file-directory-p "/usr/share/java/languagetool/") )
     (setq langtool-java-classpath
         "/usr/share/languagetool:/usr/share/java/languagetool/*")
     (require 'langtool)
+  )
 
 
 #+end_src
