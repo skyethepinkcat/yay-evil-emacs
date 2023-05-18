@@ -346,6 +346,8 @@ purpose.
     (ido-vertical-mode +1)
     (setq ido-vertical-define-keys 'C-n-C-p-up-and-down))
 
+
+  (define-key ido-common-completion-map " " 'self-insert-command)
   (use-package ido-completing-read+ :config (ido-ubiquitous-mode +1))
 
   (use-package flx-ido :config (flx-ido-mode +1))
@@ -356,12 +358,14 @@ purpose.
   (use-package org-roam :config
     (setq org-roam-directory "~/Notes/")
     (org-roam-db-autosync-mode)
+    (setq org-roam-completion-system 'ido)
     (define-key mode-specific-map (kbd "o r") 'org-roam-node-find)
     (define-key mode-specific-map (kbd "o c") 'org-roam-capture)
     (define-key mode-specific-map (kbd "o i") 'org-id-get-create)
     (define-key mode-specific-map (kbd "o a") 'org-agenda)
     (define-key org-mode-map (kbd "C-c r n") 'org-roam-capture)
     (define-key org-mode-map (kbd "C-c r i") 'org-roam-node-insert)
+    (define-key org-mode-map (kbd "C-c C-<return>") 'org-open-at-point)
     (define-key org-mode-map (kbd "C-c <") 'outline-promote)
     (define-key org-mode-map (kbd "C-c >") 'outline-demote)
     (setq org-roam-capture-templates '(
@@ -386,6 +390,9 @@ purpose.
     )
 
 #+END_SRC
+
+#+RESULTS:
+: t
 
 *** Agenda
 #+begin_src emacs-lisp
