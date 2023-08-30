@@ -1,18 +1,17 @@
 #+TITLE: Yay-Evil distro by Ian Y.E. Pan
 #+Author: Ian Y.E. Pan
 #+Date: 2019
-Welcome! This Emacs "distro" is based on my personal Emacs
-configuration (on GNU Emacs 26.3). It's unopinionated and was created
-for general use in mind. The package settings are grouped in a logical
-manner, and I've documented as detailed as possible what each code
-snippet does in this file.
+Welcome! This Emacs "distro" is based on my personal Emacs configuration (on GNU Emacs
+26.3). It's unopinionated and was created for general use in mind. The package settings
+are grouped in a logical manner, and I've documented as detailed as possible what each
+code snippet does in this file.
 * Settings without corresponding packages
-Clean up the UI and enhance some basic defaults defined in "C Source
-Code". The variable ~ian/indent-width~ controls the default indentation across various programming modes. The default is 4, you can change this variable to 2 or any other indentation width you
-prefer, and the change will be made across all programming language
-modes including C, C++, Java, Python etc. (Exception: JavaScript
-defaults to 2-space indent, you can still set it to any other
-indentation width you prefer in the ~web-mode~ section.)
+Clean up the UI and enhance some basic defaults defined in "C Source Code". The variable
+~ian/indent-width~ controls the default indentation across various programming modes. The
+default is 4, you can change this variable to 2 or any other indentation width you prefer,
+and the change will be made across all programming language modes including C, C++, Java,
+Python etc. (Exception: JavaScript defaults to 2-space indent, you can still set it to any
+other indentation width you prefer in the ~web-mode~ section.)
 #+BEGIN_SRC emacs-lisp
   (use-package emacs
     :preface
@@ -57,16 +56,15 @@ indentation width you prefer in the ~web-mode~ section.)
     :config
     (global-set-key (kbd "C-x 2") #'ian/split-and-follow-horizontally)
     (global-set-key (kbd "C-x 3") #'ian/split-and-follow-vertically)
-    (global-set-key (kbd "C-x h") #'ian/split-and-follow-horizontally))
+    (global-set-key (kbd "C-x h") #'ian/split-and-follow-horizontally)
+    )
 #+END_SRC
 
 * Configuration for built-in packages
-Since we're using use-package as our package management system, we
-might as well try to organize under the same syntax as much as
-possible to keep the configuration consistent. The option
-~use-package-always-ensure~ is turned on in ~init.el~, so we'll add
-~:ensure nil~ when configuring the built-in packages.
-#+END_SRC
+Since we're using use-package as our package management system, we might as well try to
+organize under the same syntax as much as possible to keep the configuration
+consistent. The option ~use-package-always-ensure~ is turned on in ~init.el~, so we'll add
+~:ensure nil~ when configuring the built-in packages.  #+END_SRC
 ** Modernize selection behavior
 Replace the active region just by typing text, just like modern
 editors.
@@ -201,6 +199,18 @@ of the new-line-and-push-brace feature.
     :ensure nil
     :hook (before-save . whitespace-cleanup))
 #+END_SRC
+** Fill Column
+#+begin_src emacs-lisp
+    (setq-default fill-column 90)
+#+end_src
+
+** Dump custom-set-variables to a garbage file and don't load it
+#+BEGIN_SRC emacs-lisp
+                                          ;(use-package cus-edit
+                                          ;  :ensure nil
+                                          ;  :config
+                                          ;  (setq custom-file (concat user-emacs-directory "to-be-dumped.el")))
+#+END_SRC
 ** Dired tweaks
 Delete intermediate buffers when navigating through dired.
 #+begin_src emacs-lisp
@@ -213,13 +223,6 @@ Delete intermediate buffers when navigating through dired.
           (put 'dired-find-alternate-file 'disabled nil)
           (define-key dired-mode-map (kbd "RET") #'dired-find-alternate-file))))
 #+end_src
-** Dump custom-set-variables to a garbage file and don't load it
-#+BEGIN_SRC emacs-lisp
-  (use-package cus-edit
-    :ensure nil
-    :config
-    (setq custom-file (concat user-emacs-directory "to-be-dumped.el")))
-#+END_SRC
 * Third-party packages
 Many Emacsers love having tons of packages -- and that's absolutely
 fine! However, one of the goals of the Yay-Evil distro is to provide
@@ -277,6 +280,10 @@ sequences (e.g. ~\n, \t~).
   (use-package highlight-escape-sequences
     :hook (prog-mode . hes-mode))
 #+END_SRC
+*** Layouts
+#+begin_src emacs-lisp
+  (use-package eyebrowse)
+#+end_src
 ** Vi keybindings
 I personally find Vi(m) bindings to be the most efficient way of
 editing text (especially code). +I also changed the default ~:q~ and
@@ -297,7 +304,11 @@ so I changed it back.
     :config
     (with-eval-after-load 'evil-maps ; avoid conflict with company tooltip selection
       (define-key evil-insert-state-map (kbd "C-n") nil)
-      (define-key evil-insert-state-map (kbd "C-p") nil)))
+      (define-key evil-insert-state-map (kbd "C-p") nil)
+      (keymap-set evil-window-map "_" #'split-window-vertically)
+      (keymap-set evil-window-map "|" #'split-window-horizontally)
+      )
+    )
 #+END_SRC
 Evil-collection covers more parts of Emacs that the original Evil
 doesn't support (e.g. Packages buffer, eshell, calendar etc.)
@@ -320,9 +331,13 @@ selection etc.)
 #+END_SRC
 ** Multicursor
 #+BEGIN_SRC emacs-lisp
-  (use-package evil-multiedit)
-  (evil-multiedit-default-keybinds)
+  (use-package evil-mc)
+  (global-evil-mc-mode  1) ;; enable evil-mc on all buffers
+  (evil-define-key 'visual evil-mc-key-map
+    "A" #'evil-mc-make-cursor-in-visual-selection-end
+    "I" #'evil-mc-make-cursor-in-visual-selection-beg)
 #+END_SRC
+
 ** Git Integration
 Tell magit to automatically put us in vi-insert-mode when committing a change.
 #+BEGIN_SRC emacs-lisp
@@ -358,38 +373,55 @@ purpose.
   (use-package flx-ido :config (flx-ido-mode +1))
 #+END_SRC
 ** Note Taking
-*** Org Roam
+** Org Roam
 #+BEGIN_SRC emacs-lisp
   (use-package org-roam :config
     (setq org-roam-directory "~/Notes/")
     (org-roam-db-autosync-mode)
     (setq org-roam-completion-system 'ido)
+    (define-key mode-specific-map (kbd "r f") 'org-roam-node-find)
     (define-key mode-specific-map (kbd "o r") 'org-roam-node-find)
     (define-key mode-specific-map (kbd "o c") 'org-roam-capture)
     (define-key mode-specific-map (kbd "o i") 'org-id-get-create)
     (define-key mode-specific-map (kbd "o a") 'org-agenda)
     (define-key org-mode-map (kbd "C-c r n") 'org-roam-capture)
+    (define-key org-mode-map (kbd "C-c r t a") 'org-roam-tag-add)
+    (define-key org-mode-map (kbd "C-c r t r") 'org-roam-tag-remove)
+    (define-key org-mode-map (kbd "C-c r a a") 'org-roam-alias-add)
+    (define-key org-mode-map (kbd "C-c r a r") 'org-roam-alias-remove)
     (define-key org-mode-map (kbd "C-c r i") 'org-roam-node-insert)
     (define-key org-mode-map (kbd "C-c C-<return>") 'org-open-at-point)
     (define-key org-mode-map (kbd "C-c <") 'outline-promote)
     (define-key org-mode-map (kbd "C-c >") 'outline-demote)
+    (cl-defmethod org-roam-node-my-tags ((node org-roam-node))
+      (mapcar (lambda (arg) (concat "#" arg)) (remove "ATTACH" (org-roam-node-tags node)))
+      )
+    (setq org-roam-node-display-template
+          (concat "${title:90} "
+                  (propertize "${my-tags:10}" 'face 'org-tag)))
+
     (setq org-roam-capture-templates '(
                                        ("d" "default" plain "%?" :target
                                         (file+head "${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
                                         :unnarrowed t)
                                        ("p" "private" plain "%?" :target
-                                        (file+head "${slug}.org.gpg" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
+                                        (file+head "private/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
                                         :unnarrowed t)
                                        ("s" "school" plain "%?" :target
                                         (file+head "school/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n#+filetags: :school:\n")
+                                        :unnarrowed t)
+                                       ("c" "class" plain "%?" :target
+                                        (file+head "private/${slug}.org" "#+title: ${title}\n#+filetags: :school:class:\n\n- Teachers\n- TAs\n- Textbooks\n"
+                                                   )
                                         :unnarrowed t)
                                        ("m" "stat355" plain "%?" :target
                                         (file+head "school/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n#+filetags: :school:stat355:stat:\n")
                                         :unnarrowed t)
                                        ("r" "reminder" entry "** TODO %?\n%a" :target
-                                        (file+olp "todo.org.gpg" ("reminders"))
+                                        (file+olp "private/todo.org" ("reminders"))
                                         :unnarrowed nil)
-                                       ))
+                                       )
+          )
     (setq org-clock-persist t)
     (org-clock-persistence-insinuate)
     )
@@ -398,10 +430,22 @@ purpose.
 
 #+RESULTS:
 : t
+*** COMMENT Keymap Work
+#+BEGIN_SRC emacs-lisp
+    (require 'org-roam
+    (define-keymap org-roam-mode-map
+                      :prefix "C-c r"
+                      "f" #'org-roam-node-find)
+                      )
+
+#+END_SRC
+
+#+RESULTS:
+: t
 
 *** Agenda
 #+begin_src emacs-lisp
-  (setq org-agenda-files (list org-roam-directory))
+  (setq org-agenda-files (list 'org-roam-directory))
   (setq org-agenda-file-regexp "\\`[^.].*\\.org\\(\\.gpg\\)?\\'")
 #+end_src
 
@@ -440,9 +484,9 @@ A tool to check grammar and such things, very useful if you're using emacs for e
 #+begin_src emacs-lisp
   (when (or (file-directory-p "/usr/share/languagetool") (file-directory-p "/usr/share/java/languagetool/") )
     (setq langtool-java-classpath
-        "/usr/share/languagetool:/usr/share/java/languagetool/*")
+          "/usr/share/languagetool:/usr/share/java/languagetool/*")
     (require 'langtool)
-  )
+    )
 
 
 #+end_src
@@ -460,12 +504,13 @@ Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/T
   (use-package geiser-racket :ensure t)
   (use-package haskell-mode)
   (use-package go-mode)
+  (use-package rustic)
   (use-package markdown-mode
     :hook (markdown-mode . visual-line-mode))
   (use-package quack)
- (use-package ess
-  :ensure t
-  :init (require 'ess-site))
+  (use-package ess
+    :ensure t
+    :init (require 'ess-site))
 
   (use-package web-mode
     :mode (("\\.html?\\'" . web-mode)
@@ -480,44 +525,61 @@ Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/T
     (setq web-mode-content-types-alist '(("jsx" . "\\.js[x]?\\'"))))
 #+END_SRC
 
+#+RESULTS:
+: ((\.rs\' . rustic-mode) (\.odc\' . archive-mode) (\.odf\' . archive-mode) (\.odi\' . archive-mode) (\.otp\' . archive-mode) (\.odp\' . archive-mode) (\.otg\' . archive-mode) (\.odg\' . archive-mode) (\.ots\' . archive-mode) (\.ods\' . archive-mode) (\.odm\' . archive-mode) (\.ott\' . archive-mode) (\.odt\' . archive-mode) (\.json\' . web-mode) (\.tsx?\' . web-mode) (\.jsx?\' . web-mode) (\.css\' . web-mode) (\.html?\' . web-mode) (\.ccl\' . scheme-mode) (\.rkt\' . scheme-mode) (\.rktd\' . scheme-mode) (\.sch\' . scheme-mode) (\.scm\' . scheme-mode) (\.ss\' . scheme-mode) (\.stk\' . scheme-mode) (\.stklos\' . scheme-mode) (/\.mzschemerc\' . scheme-mode) (\.plt\' . quack-pltfile-mode) (\.[Ss][Aa][Ss]\' . SAS-mode) (\.Sout\' . S-transcript-mode) (\.[Ss]t\' . S-transcript-mode) (\.Rd\' . Rd-mode) (DESCRIPTION\' . conf-colon-mode) (/Makevars\(\.win\)?\' . makefile-mode) (\.[Rr]out\' . ess-r-transcript-mode) (CITATION\' . ess-r-mode) (NAMESPACE\' . ess-r-mode) (\.[rR]profile\' . ess-r-mode) (\.[rR]\' . ess-r-mode) (/R/.*\.q\' . ess-r-mode) (\.[Jj][Aa][Gg]\' . ess-jags-mode) (\.[Bb][Mm][Dd]\' . ess-bugs-mode) (\.[Bb][Oo][Gg]\' . ess-bugs-mode) (\.[Bb][Uu][Gg]\' . ess-bugs-mode) (go\.work\' . go-dot-work-mode) (go\.mod\' . go-dot-mod-mode) (\.go\' . go-mode) (\.hsc\' . haskell-mode) (\.l[gh]s\' . haskell-literate-mode) (\.hsig\' . haskell-mode) (\.[gh]s\' . haskell-mode) (\.cabal\'\|/cabal\.project\|/\.cabal/config\' . haskell-cabal-mode) (\.chs\' . haskell-c2hs-mode) (\.ghci\' . ghci-script-mode) (\.dump-simpl\' . ghc-core-mode) (\.hcr\' . ghc-core-mode) (/git-rebase-todo\' . git-rebase-mode) (\.\(?:md\|markdown\|mkd\|mdown\|mkdn\|mdwn\)\' . markdown-mode) (\.pp\' . puppet-mode) (\.\(e?ya?\|ra\)ml\' . yaml-mode) (\.gpg\(~\|\.~[0-9]+~\)?\' nil epa-file) (\.elc\' . elisp-byte-code-mode) (\.zst\' nil jka-compr) (\.dz\' nil jka-compr) (\.xz\' nil jka-compr) (\.lzma\' nil jka-compr) (\.lz\' nil jka-compr) (\.g?z\' nil jka-compr) (\.bz2\' nil jka-compr) (\.Z\' nil jka-compr) (\.vr[hi]?\' . vera-mode) (\(?:\.\(?:rbw?\|ru\|rake\|thor\|jbuilder\|rabl\|gemspec\|podspec\)\|/\(?:Gem\|Rake\|Cap\|Thor\|Puppet\|Berks\|Brew\|Vagrant\|Guard\|Pod\)file\)\' . ruby-mode) (\.re?st\' . rst-mode) (\.py[iw]?\' . python-mode) (\.m\' . octave-maybe-mode) (\.less\' . less-css-mode) (\.scss\' . scss-mode) (\.awk\' . awk-mode) (\.\(u?lpc\|pike\|pmod\(\.in\)?\)\' . pike-mode) (\.idl\' . idl-mode) (\.java\' . java-mode) (\.m\' . objc-mode) (\.ii\' . c++-mode) (\.i\' . c-mode) (\.lex\' . c-mode) (\.y\(acc\)?\' . c-mode) (\.h\' . c-or-c++-mode) (\.c\' . c-mode) (\.\(CC?\|HH?\)\' . c++-mode) (\.[ch]\(pp\|xx\|\+\+\)\' . c++-mode) (\.\(cc\|hh\)\' . c++-mode) (\.\(bat\|cmd\)\' . bat-mode) (\.[sx]?html?\(\.[a-zA-Z_]+\)?\' . mhtml-mode) (\.svgz?\' . image-mode) (\.svgz?\' . xml-mode) (\.x[bp]m\' . image-mode) (\.x[bp]m\' . c-mode) (\.p[bpgn]m\' . image-mode) (\.tiff?\' . image-mode) (\.gif\' . image-mode) (\.png\' . image-mode) (\.jpe?g\' . image-mode) (\.te?xt\' . text-mode) (\.[tT]e[xX]\' . tex-mode) (\.ins\' . tex-mode) (\.ltx\' . latex-mode) (\.dtx\' . doctex-mode) (\.org\' . org-mode) (\.dir-locals\(?:-2\)?\.el\' . lisp-data-mode) (eww-bookmarks\' . lisp-data-mode) (tramp\' . lisp-data-mode) (/archive-contents\' . lisp-data-mode) (places\' . lisp-data-mode) (\.emacs-places\' . lisp-data-mode) (\.el\' . emacs-lisp-mode) (Project\.ede\' . emacs-lisp-mode) (\.\(scm\|stk\|ss\|sch\)\' . scheme-mode) (\.l\' . lisp-mode) (\.li?sp\' . lisp-mode) (\.[fF]\' . fortran-mode) (\.for\' . fortran-mode) (\.p\' . pascal-mode) (\.pas\' . pascal-mode) (\.\(dpr\|DPR\)\' . delphi-mode) (\.\([pP]\([Llm]\|erl\|od\)\|al\)\' . perl-mode) (Imakefile\' . makefile-imake-mode) (Makeppfile\(?:\.mk\)?\' . makefile-makepp-mode) (\.makepp\' . makefile-makepp-mode) (\.mk\' . makefile-gmake-mode) (\.make\' . makefile-gmake-mode) ([Mm]akefile\' . makefile-gmake-mode) (\.am\' . makefile-automake-mode) (\.texinfo\' . texinfo-mode) (\.te?xi\' . texinfo-mode) (\.[sS]\' . asm-mode) (\.asm\' . asm-mode) (\.css\' . css-mode) (\.mixal\' . mixal-mode) (\.gcov\' . compilation-mode) (/\.[a-z0-9-]*gdbinit . gdb-script-mode) (-gdb\.gdb . gdb-script-mode) ([cC]hange\.?[lL]og?\' . change-log-mode) ([cC]hange[lL]og[-.][0-9]+\' . change-log-mode) (\$CHANGE_LOG\$\.TXT . change-log-mode) (\.scm\.[0-9]*\' . scheme-mode) (\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\' . sh-mode) (\.bash\' . sh-mode) (/PKGBUILD\' . sh-mode) (\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\' . sh-mode) (\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\' . sh-mode) (\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\' . sh-mode) (\.m?spec\' . sh-mode) (\.m[mes]\' . nroff-mode) (\.man\' . nroff-mode) (\.sty\' . latex-mode) (\.cl[so]\' . latex-mode) (\.bbl\' . latex-mode) (\.bib\' . bibtex-mode) (\.bst\' . bibtex-style-mode) (\.sql\' . sql-mode) (\(acinclude\|aclocal\|acsite\)\.m4\' . autoconf-mode) (\.m[4c]\' . m4-mode) (\.mf\' . metafont-mode) (\.mp\' . metapost-mode) (\.vhdl?\' . vhdl-mode) (\.article\' . text-mode) (\.letter\' . text-mode) (\.i?tcl\' . tcl-mode) (\.exp\' . tcl-mode) (\.itk\' . tcl-mode) (\.icn\' . icon-mode) (\.sim\' . simula-mode) (\.mss\' . scribe-mode) (\.f9[05]\' . f90-mode) (\.f0[38]\' . f90-mode) (\.indent\.pro\' . fundamental-mode) (\.\(pro\|PRO\)\' . idlwave-mode) (\.srt\' . srecode-template-mode) (\.prolog\' . prolog-mode) (\.tar\' . tar-mode) (\.\(arc\|zip\|lzh\|lha\|zoo\|[jew]ar\|xpi\|rar\|cbr\|7z\|squashfs\|ARC\|ZIP\|LZH\|LHA\|ZOO\|[JEW]AR\|XPI\|RAR\|CBR\|7Z\|SQUASHFS\)\' . archive-mode) (\.oxt\' . archive-mode) (\.\(deb\|[oi]pk\)\' . archive-mode) (\`/tmp/Re . text-mode) (/Message[0-9]*\' . text-mode) (\`/tmp/fol/ . text-mode) (\.oak\' . scheme-mode) (\.sgml?\' . sgml-mode) (\.x[ms]l\' . xml-mode) (\.dbk\' . xml-mode) (\.dtd\' . sgml-mode) (\.ds\(ss\)?l\' . dsssl-mode) (\.js[mx]?\' . javascript-mode) (\.har\' . javascript-mode) (\.json\' . javascript-mode) (\.[ds]?va?h?\' . verilog-mode) (\.by\' . bovine-grammar-mode) (\.wy\' . wisent-grammar-mode) ([:/\]\..*\(emacs\|gnus\|viper\)\' . emacs-lisp-mode) (\`\..*emacs\' . emacs-lisp-mode) ([:/]_emacs\' . emacs-lisp-mode) (/crontab\.X*[0-9]+\' . shell-script-mode) (\.ml\' . lisp-mode) (\.ld[si]?\' . ld-script-mode) (ld\.?script\' . ld-script-mode) (\.xs\' . c-mode) (\.x[abdsru]?[cnw]?\' . ld-script-mode) (\.zone\' . dns-mode) (\.soa\' . dns-mode) (\.asd\' . lisp-mode) (\.\(asn\|mib\|smi\)\' . snmp-mode) (\.\(as\|mi\|sm\)2\' . snmpv2-mode) (\.\(diffs?\|patch\|rej\)\' . diff-mode) (\.\(dif\|pat\)\' . diff-mode) (\.[eE]?[pP][sS]\' . ps-mode) (\.\(?:PDF\|DVI\|OD[FGPST]\|DOCX\|XLSX?\|PPTX?\|pdf\|djvu\|dvi\|od[fgpst]\|docx\|xlsx?\|pptx?\)\' . doc-view-mode-maybe) (configure\.\(ac\|in\)\' . autoconf-mode) (\.s\(v\|iv\|ieve\)\' . sieve-mode) (BROWSE\' . ebrowse-tree-mode) (\.ebrowse\' . ebrowse-tree-mode) (#\*mail\* . mail-mode) (\.g\' . antlr-mode) (\.mod\' . m2-mode) (\.ses\' . ses-mode) (\.docbook\' . sgml-mode) (\.com\' . dcl-mode) (/config\.\(?:bat\|log\)\' . fundamental-mode) (/\.\(authinfo\|netrc\)\' . authinfo-mode) (\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\' . conf-mode) (\.la\' . conf-unix-mode) (\.ppd\' . conf-ppd-mode) (java.+\.conf\' . conf-javaprop-mode) (\.properties\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-javaprop-mode) (\.toml\' . conf-toml-mode) (\.desktop\' . conf-desktop-mode) (/\.redshift\.conf\' . conf-windows-mode) (\`/etc/\(?:DIR_COLORS\|ethers\|.?fstab\|.*hosts\|lesskey\|login\.?de\(?:fs\|vperm\)\|magic\|mtab\|pam\.d/.*\|permissions\(?:\.d/.+\)?\|protocols\|rpc\|services\)\' . conf-space-mode) (\`/etc/\(?:acpid?/.+\|aliases\(?:\.d/.+\)?\|default/.+\|group-?\|hosts\..+\|inittab\|ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\' . conf-mode) ([cC]hange[lL]og[-.][-0-9a-z]+\' . change-log-mode) (/\.?\(?:gitconfig\|gnokiirc\|hgrc\|kde.*rc\|mime\.types\|wgetrc\)\' . conf-mode) (/\.\(?:asound\|enigma\|fetchmail\|gltron\|gtk\|hxplayer\|mairix\|mbsync\|msmtp\|net\|neverball\|nvidia-settings-\|offlineimap\|qt/.+\|realplayer\|reportbug\|rtorrent\.\|screen\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\' . conf-mode) (/\.\(?:gdbtkinit\|grip\|mpdconf\|notmuch-config\|orbital/.+txt\|rhosts\|tuxracer/options\)\' . conf-mode) (/\.?X\(?:default\|resource\|re\)s\> . conf-xdefaults-mode) (/X11.+app-defaults/\|\.ad\' . conf-xdefaults-mode) (/X11.+locale/.+/Compose\' . conf-colon-mode) (/X11.+locale/compose\.dir\' . conf-javaprop-mode) (\.~?[0-9]+\.[0-9][-.0-9]*~?\' nil t) (\.\(?:orig\|in\|[bB][aA][kK]\)\' nil t) ([/.]c\(?:on\)?f\(?:i?g\)?\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-mode-maybe) (\.[1-9]\' . nroff-mode) (\.art\' . image-mode) (\.avs\' . image-mode) (\.bmp\' . image-mode) (\.cmyk\' . image-mode) (\.cmyka\' . image-mode) (\.crw\' . image-mode) (\.dcr\' . image-mode) (\.dcx\' . image-mode) (\.dng\' . image-mode) (\.dpx\' . image-mode) (\.fax\' . image-mode) (\.hrz\' . image-mode) (\.icb\' . image-mode) (\.icc\' . image-mode) (\.icm\' . image-mode) (\.ico\' . image-mode) (\.icon\' . image-mode) (\.jbg\' . image-mode) (\.jbig\' . image-mode) (\.jng\' . image-mode) (\.jnx\' . image-mode) (\.miff\' . image-mode) (\.mng\' . image-mode) (\.mvg\' . image-mode) (\.otb\' . image-mode) (\.p7\' . image-mode) (\.pcx\' . image-mode) (\.pdb\' . image-mode) (\.pfa\' . image-mode) (\.pfb\' . image-mode) (\.picon\' . image-mode) (\.pict\' . image-mode) (\.rgb\' . image-mode) (\.rgba\' . image-mode) (\.tga\' . image-mode) (\.wbmp\' . image-mode) (\.webp\' . image-mode) (\.wmf\' . image-mode) (\.wpg\' . image-mode) (\.xcf\' . image-mode) (\.xmp\' . image-mode) (\.xwd\' . image-mode) (\.yuv\' . image-mode) (\.tgz\' . tar-mode) (\.tbz2?\' . tar-mode) (\.txz\' . tar-mode) (\.tzst\' . tar-mode))
+
 *** Github Copilot
 #+BEGIN_SRC emacs-lisp
-; (use-package copilot
-;   :straight (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
-;   :ensure t)
-; ;; you can utilize :map :hook and :config to customize copilot
-;   (add-hook 'prog-mode-hook 'copilot-mode)
-;   (with-eval-after-load 'company
-;   ;; disable inline previews
-;   (delq 'company-preview-if-just-one-frontend company-frontends))
+                                          ; (use-package copilot
+                                          ;   :straight (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
+                                          ;   :ensure t)
+                                          ; ;; you can utilize :map :hook and :config to customize copilot
+                                          ;   (add-hook 'prog-mode-hook 'copilot-mode)
+                                          ;   (with-eval-after-load 'company
+                                          ;   ;; disable inline previews
+                                          ;   (delq 'company-preview-if-just-one-frontend company-frontends))
 
-;   (define-key copilot-completion-map (kbd "<tab>") 'copilot-accept-completion)
-;   (define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
+                                          ;   (define-key copilot-completion-map (kbd "<tab>") 'copilot-accept-completion)
+                                          ;   (define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
 #+END_SRC
+
+*** Mediawiki
+A major mode that lets you edit mediawiki instances.
+#+begin_src emacs-lisp
+  (use-package mediawiki)
+#+end_src
+
+**** Mediawiki Org Export
+Allows org to export to mediawiki.
+
+#+begin_src emacs-lisp
+  (use-package ox-mediawiki)
+#+end_src
+
 *** LSP
 #+BEGIN_SRC emacs-lisp
   (use-package lsp-mode
-  :hook
-   ((python-mode . lsp)
-   (lsp-mode . lsp-enable-which-key-integration))
-  :bind (:map evil-normal-state-map
-              ("gh" . lsp-describe-thing-at-point)))
+    :hook
+    ((python-mode . lsp)
+     (lsp-mode . lsp-enable-which-key-integration))
+    :bind (:map evil-normal-state-map
+                ("gh" . lsp-describe-thing-at-point)))
 
-    (use-package lsp-ui
+  (use-package lsp-ui
     :config (setq lsp-ui-sideline-show-hover t
-                    lsp-ui-sideline-delay 0.5
-                    lsp-ui-doc-delay 5
-                    lsp-ui-sideline-ignore-duplicates t
-                    lsp-ui-doc-position 'bottom
-                    lsp-ui-doc-alignment 'frame
-                    lsp-ui-doc-header nil
-                    lsp-ui-doc-include-signature t
-                    lsp-ui-doc-use-childframe t)
+                  lsp-ui-sideline-delay 0.5
+                  lsp-ui-doc-delay 5
+                  lsp-ui-sideline-ignore-duplicates t
+                  lsp-ui-doc-position 'bottom
+                  lsp-ui-doc-alignment 'frame
+                  lsp-ui-doc-header nil
+                  lsp-ui-doc-include-signature t
+                  lsp-ui-doc-use-childframe t)
     :commands lsp-ui-mode
     :bind (:map evil-normal-state-map
                 ("gd" . lsp-ui-peek-find-definitions)
                 ("gr" . lsp-ui-peek-find-references)
-              ))
+                ))
 
 #+END_SRC
 
@@ -551,14 +613,19 @@ Provides us with hints on available keystroke combinations.
 #+END_SRC
 *** Yaml Mode
 #+BEGIN_SRC emacs-lisp
-(use-package yaml-mode)
-(use-package puppet-mode)
+  (use-package yaml-mode)
+  (use-package puppet-mode)
 #+END_SRC
 *** Dark/light handling
 #+BEGIN_SRC emacs-lisp
   (defun +theme-dark ()
-  (load-theme 'doom-dracula t))
+    (load-theme 'doom-dracula t))
   (defun +theme-light ()
-  (load-theme 'doom-solarized-light t))
+    (load-theme 'doom-solarized-light t))
 
+#+END_SRC
+*** Keychain support
+#+BEGIN_SRC emacs-lisp
+(require 'keychain-environment)
+(keychain-refresh-environment)
 #+END_SRC
