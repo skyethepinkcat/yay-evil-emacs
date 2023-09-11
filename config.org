@@ -160,12 +160,13 @@ Reduce the highlight delay to instantly.
 ** Setting up some frame defaults
 Maximize the frame by default on start-up. Set the font to size 12.
 #+BEGIN_SRC emacs-lisp
+  (setq skye/font-name "Source Code Pro")
   (use-package frame
     :preface
     (defun ian/set-default-font ()
       (interactive)
-      (when (member "Consolas" (font-family-list))
-        (set-face-attribute 'default nil :family "Consolas"))
+      (when (member skye/font-name (font-family-list))
+        (set-face-attribute 'default nil :family skye/font-name))
       (set-face-attribute 'default nil
                           :height 120
                           :weight 'normal))
@@ -174,6 +175,7 @@ Maximize the frame by default on start-up. Set the font to size 12.
     (setq initial-frame-alist '((fullscreen . maximized)))
     (ian/set-default-font))
 #+END_SRC
+
 ** Ediff tweaks
 Enter ediff with side-by-side buffers to better compare the
 differences.
@@ -239,6 +241,10 @@ Normally, we need to add ~:ensure t~ to tell ~use-package~ to download packages 
 ** GUI enhancements
 *** Load custom theme
 #+BEGIN_SRC emacs-lisp
+ ;(use-package vscode-dark-plus-theme
+ ;  :ensure t
+ ;  :config
+ ;  (load-theme 'vscode-dark-plus t))
   (use-package doom-themes
     :config
     ;; Global settings (defaults)
@@ -249,16 +255,17 @@ Normally, we need to add ~:ensure t~ to tell ~use-package~ to download packages 
     ;; Enable flashing mode-line on errors
     (doom-themes-visual-bell-config)
     ;; Enable custom neotree theme (all-the-icons must be installed!)
-                                          ; (doom-themes-neotree-config)
+    (doom-themes-neotree-config)
     ;; or for treemacs users
                                           ;(setq doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
-                                          ; (doom-themes-treemacs-config)
+    (doom-themes-treemacs-config)
     ;; Corrects (and improves) org-mode's native fontification.
     (doom-themes-org-config))
 #+END_SRC
 
 #+RESULTS:
 : t
+
 
 *** Dashboard welcome page
 #+BEGIN_SRC emacs-lisp
@@ -307,6 +314,7 @@ so I changed it back.
       (define-key evil-insert-state-map (kbd "C-p") nil)
       (keymap-set evil-window-map "_" #'split-window-vertically)
       (keymap-set evil-window-map "|" #'split-window-horizontally)
+      (evil-set-initial-state 'org-agenda-mode 'normal)
       )
     )
 #+END_SRC
@@ -375,79 +383,73 @@ purpose.
 ** Note Taking
 ** Org Roam
 #+BEGIN_SRC emacs-lisp
-  (use-package org-roam :config
-    (setq org-roam-directory "~/Notes/")
-    (org-roam-db-autosync-mode)
-    (setq org-roam-completion-system 'ido)
-    (define-key mode-specific-map (kbd "r f") 'org-roam-node-find)
-    (define-key mode-specific-map (kbd "o r") 'org-roam-node-find)
-    (define-key mode-specific-map (kbd "o c") 'org-roam-capture)
-    (define-key mode-specific-map (kbd "o i") 'org-id-get-create)
-    (define-key mode-specific-map (kbd "o a") 'org-agenda)
-    (define-key org-mode-map (kbd "C-c r n") 'org-roam-capture)
-    (define-key org-mode-map (kbd "C-c r t a") 'org-roam-tag-add)
-    (define-key org-mode-map (kbd "C-c r t r") 'org-roam-tag-remove)
-    (define-key org-mode-map (kbd "C-c r a a") 'org-roam-alias-add)
-    (define-key org-mode-map (kbd "C-c r a r") 'org-roam-alias-remove)
-    (define-key org-mode-map (kbd "C-c r i") 'org-roam-node-insert)
-    (define-key org-mode-map (kbd "C-c C-<return>") 'org-open-at-point)
-    (define-key org-mode-map (kbd "C-c <") 'outline-promote)
-    (define-key org-mode-map (kbd "C-c >") 'outline-demote)
-    (cl-defmethod org-roam-node-my-tags ((node org-roam-node))
-      (mapcar (lambda (arg) (concat "#" arg)) (remove "ATTACH" (org-roam-node-tags node)))
-      )
-    (setq org-roam-node-display-template
-          (concat "${title:90} "
-                  (propertize "${my-tags:10}" 'face 'org-tag)))
+    (use-package org-roam :config
+      (setq org-roam-directory (file-truename "/home/skye/Notes"))
+      (org-roam-db-autosync-mode)
+      (setq org-roam-completion-system 'ido)
+      (define-key mode-specific-map (kbd "r f") 'org-roam-node-find)
+      (define-key mode-specific-map (kbd "o r") 'org-roam-node-find)
+      (define-key mode-specific-map (kbd "o c") 'org-roam-capture)
+      (define-key mode-specific-map (kbd "o i") 'org-id-get-create)
+      (define-key mode-specific-map (kbd "o a") 'org-agenda)
+      (define-key org-mode-map (kbd "C-c r n") 'org-roam-capture)
+      (define-key org-mode-map (kbd "C-c r t a") 'org-roam-tag-add)
+      (define-key org-mode-map (kbd "C-c r t r") 'org-roam-tag-remove)
+      (define-key org-mode-map (kbd "C-c r a a") 'org-roam-alias-add)
+      (define-key org-mode-map (kbd "C-c r a r") 'org-roam-alias-remove)
+      (define-key org-mode-map (kbd "C-c r i") 'org-roam-node-insert)
+      (define-key org-mode-map (kbd "C-c C-<return>") 'org-open-at-point)
+      (define-key org-mode-map (kbd "C-c <") 'outline-promote)
+      (define-key org-mode-map (kbd "C-c >") 'outline-demote)
+      (cl-defmethod org-roam-node-my-tags ((node org-roam-node))
+        (mapcar (lambda (arg) (concat "#" arg)) (remove "todo" (remove "ATTACH" (org-roam-node-tags node))))
+  )
+      (setq org-roam-node-display-template
+            (concat "${title:90} "
+                    (propertize "${tags:10}" 'face 'org-tag)))
 
-    (setq org-roam-capture-templates '(
-                                       ("d" "default" plain "%?" :target
-                                        (file+head "${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
-                                        :unnarrowed t)
-                                       ("p" "private" plain "%?" :target
-                                        (file+head "private/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
-                                        :unnarrowed t)
-                                       ("s" "school" plain "%?" :target
-                                        (file+head "school/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n#+filetags: :school:\n")
-                                        :unnarrowed t)
-                                       ("c" "class" plain "%?" :target
-                                        (file+head "private/${slug}.org" "#+title: ${title}\n#+filetags: :school:class:\n\n- Teachers\n- TAs\n- Textbooks\n"
-                                                   )
-                                        :unnarrowed t)
-                                       ("m" "stat355" plain "%?" :target
-                                        (file+head "school/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n#+filetags: :school:stat355:stat:\n")
-                                        :unnarrowed t)
-                                       ("r" "reminder" entry "** TODO %?\n%a" :target
-                                        (file+olp "private/todo.org" ("reminders"))
-                                        :unnarrowed nil)
-                                       )
-          )
-    (setq org-clock-persist t)
-    (org-clock-persistence-insinuate)
-    )
-
-#+END_SRC
-
-#+RESULTS:
-: t
-*** COMMENT Keymap Work
-#+BEGIN_SRC emacs-lisp
-    (require 'org-roam
-    (define-keymap org-roam-mode-map
-                      :prefix "C-c r"
-                      "f" #'org-roam-node-find)
-                      )
+      (setq org-roam-capture-templates '(
+                                         ("d" "default" plain "%?" :target
+                                          (file+head "${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
+                                          :unnarrowed t)
+                                         ("p" "private" plain "%?" :target
+                                          (file+head "private/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n")
+                                          :unnarrowed t)
+                                         ("s" "school" plain "%?" :target
+                                          (file+head "school/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n#+filetags: :school:\n")
+                                          :unnarrowed t)
+                                         ("c" "class" plain "%?" :target
+                                          (file+head "private/${slug}.org" "#+title: ${title}\n#+filetags: :school:class:\n\n- Teachers\n- TAs\n- Textbooks\n"
+                                                     )
+                                          :unnarrowed t)
+                                         ("m" "stat355" plain "%?" :target
+                                          (file+head "school/${slug}.org" "#+title: ${title}\n#+CREATED: %<[%Y-%m-%d]>\n#+filetags: :school:stat355:stat:\n")
+                                          :unnarrowed t)
+                                         ("r" "reminder" entry "** TODO %?\n%a" :target
+                                          (file+olp "private/todo.org" ("reminders"))
+                                          :unnarrowed nil)
+                                         )
+            )
+      (setq org-clock-persist t)
+      (setq org-roam-completion-ignore-case t)
+      (org-clock-persistence-insinuate))
 
 #+END_SRC
-
-#+RESULTS:
-: t
 
 *** Agenda
 #+begin_src emacs-lisp
-  (setq org-agenda-files (list 'org-roam-directory))
+  (setq org-agenda-files (list org-roam-directory))
   (setq org-agenda-file-regexp "\\`[^.].*\\.org\\(\\.gpg\\)?\\'")
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "HACK(h)" "|" "DONE(d)" )
+          (sequence "NEXT(n)" "WAIT(w)" "START(s)" "|" "KILL(k)" )
+          (sequence "PROJECT(p)" "|")
+          (sequence "MEDIA(m)" "|" "WATCHED(a)")
+          ))
 #+end_src
+
+#+RESULTS:
+: \`[^.].*\.org\(\.gpg\)?\'
 
 ** Programming language support and utilities
 *** Org Babel
@@ -469,15 +471,30 @@ Use ~C-n~ and ~C-p~ to navigate the tooltip.
           company-selection-wrap-around t
           company-tooltip-align-annotations t
           company-frontends '(company-pseudo-tooltip-frontend ; show tooltip even for single candidate
-                              company-echo-metadata-frontend))
+                              company-echo-metadata-frontend)
+          )
+
+    (add-to-list 'company-backends 'company-capf)
     (define-key company-active-map (kbd "C-n") 'company-select-next)
     (define-key company-active-map (kbd "C-p") 'company-select-previous))
+  (add-hook 'after-init-hook 'global-company-mode)
 #+END_SRC
+
 *** Flycheck
 A modern on-the-fly syntax checking extension -- absolute essential
 #+BEGIN_SRC emacs-lisp
   (use-package flycheck :config (global-flycheck-mode +1))
 #+END_SRC
+
+*** Flyspell
+#+BEGIN_SRC emacs-lisp
+  (setq flyspell-issue-message-flag nil)
+  (dolist (hook '(text-mode-hook org-mode-hook))
+    (add-hook hook (lambda () (flyspell-mode 1))))
+  (dolist (hook '(change-log-mode-hook log-edit-mode-hook))
+    (add-hook hook (lambda () (flyspell-mode -1))))
+#+END_SRC
+
 *** LanguageTool
 A tool to check grammar and such things, very useful if you're using emacs for essays.
 
@@ -622,10 +639,9 @@ Provides us with hints on available keystroke combinations.
     (load-theme 'doom-dracula t))
   (defun +theme-light ()
     (load-theme 'doom-solarized-light t))
-
 #+END_SRC
 *** Keychain support
 #+BEGIN_SRC emacs-lisp
-(require 'keychain-environment)
+(use-package keychain-environment)
 (keychain-refresh-environment)
 #+END_SRC
