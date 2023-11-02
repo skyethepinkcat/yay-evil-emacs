@@ -24,7 +24,7 @@ other indentation width you prefer in the ~web-mode~ section.)
           default-directory "~/")
 
     (tool-bar-mode -1)
-    (menu-bar-mode -1)
+    (menu-bar-mode 1)
 
     ;; better scrolling experience
     (setq scroll-margin 0
@@ -64,7 +64,7 @@ other indentation width you prefer in the ~web-mode~ section.)
 Since we're using use-package as our package management system, we might as well try to
 organize under the same syntax as much as possible to keep the configuration
 consistent. The option ~use-package-always-ensure~ is turned on in ~init.el~, so we'll add
-~:ensure nil~ when configuring the built-in packages.  #+END_SRC
+~:ensure nil~ when configuring the built-in packages.
 ** Modernize selection behavior
 Replace the active region just by typing text, just like modern
 editors.
@@ -127,6 +127,14 @@ let's tune it down a little bit.
     :config (setq mouse-wheel-scroll-amount '(2 ((shift) . 1))
                   mouse-wheel-progressive-speed nil))
 #+END_SRC
+** Show matching parentheses
+Reduce the highlight delay to instantly.
+#+BEGIN_SRC emacs-lisp
+  (use-package paren
+    :ensure nil
+    :init (setq show-paren-delay 0)
+    :config (show-paren-mode +1))
+#+END_SRC
 ** Indentation improvement
 For Java and C/C++, change the formatting style from GNU (the default)
 to the more standard K&R. Here we also set the indentation width of C,
@@ -149,18 +157,10 @@ the value depending on the language as well.
     :ensure nil
     :config (setq python-indent-offset ian/indent-width))
 #+END_SRC
-** Show matching parentheses
-Reduce the highlight delay to instantly.
-#+BEGIN_SRC emacs-lisp
-  (use-package paren
-    :ensure nil
-    :init (setq show-paren-delay 0)
-    :config (show-paren-mode +1))
-#+END_SRC
 ** Setting up some frame defaults
 Maximize the frame by default on start-up. Set the font to size 12.
 #+BEGIN_SRC emacs-lisp
-  (setq skye/font-name "Source Code Pro")
+  (setq skye/font-name "IBM Plex Mono")
   (use-package frame
     :preface
     (defun ian/set-default-font ()
@@ -225,6 +225,13 @@ Delete intermediate buffers when navigating through dired.
           (put 'dired-find-alternate-file 'disabled nil)
           (define-key dired-mode-map (kbd "RET") #'dired-find-alternate-file))))
 #+end_src
+** Tabs
+#+begin_src emacs-lisp
+  (setq tab-bar-show 0)
+
+  (global-set-key (kbd "C-<next>") 'tab-next)
+  (global-set-key (kbd "C-<prior>") 'tab-previous)
+#+end_src
 * Third-party packages
 Many Emacsers love having tons of packages -- and that's absolutely
 fine! However, one of the goals of the Yay-Evil distro is to provide
@@ -262,10 +269,6 @@ Normally, we need to add ~:ensure t~ to tell ~use-package~ to download packages 
     ;; Corrects (and improves) org-mode's native fontification.
     (doom-themes-org-config))
 #+END_SRC
-
-#+RESULTS:
-: t
-
 
 *** Dashboard welcome page
 #+BEGIN_SRC emacs-lisp
@@ -381,7 +384,88 @@ purpose.
   (use-package flx-ido :config (flx-ido-mode +1))
 #+END_SRC
 ** Note Taking
-** Org Roam
+*** Org References
+#+BEGIN_SRC emacs-lisp
+  (use-package org-ref
+    :config
+    (setq bibtex-completion-bibliography '((concat org-roam-directory "bibliography/references.bib"))
+  bibtex-completion-library-path '((concat org-roam-directory "bibliography/pdfs/"))))
+
+
+#+END_SRC
+
+**** Agenda
+**** Org-Roam-Todo
+[[https://magnus.therning.org/2021-07-23-keeping-todo-items-in-org-roam-v2.html][Todo list support in org-roam]]!
+***** Supporting
+
+#+begin_src emacs-lisp
+  (defun roam-extra:get-filetags ()
+    (split-string (or (org-roam-get-keyword "filetags") "")))
+
+  (defun roam-extra:add-filetag (tag)
+    (let* ((new-tags (cons tag (roam-extra:get-filetags)))
+           (new-tags-str (combine-and-quote-strings new-tags)))
+      (org-roam-set-keyword "filetags" new-tags-str)))
+
+  (defun roam-extra:del-filetag (tag)
+    (let* ((new-tags (seq-difference (roam-extra:get-filetags) `(,tag)))
+           (new-tags-str (combine-and-quote-strings new-tags)))
+      (org-roam-set-keyword "filetags" new-tags-str)))
+#+end_src
+***** Layer
+#+begin_src emacs-lisp
+  (defun roam-extra:todo-p ()
+    "Return non-nil if current buffer has any TODO entry.
+
+         TODO entries marked as done are ignored, meaning the this
+         function returns nil if current buffer contains only completed
+         tasks."
+    (org-element-map
+        (org-element-parse-buffer 'headline)
+        'headline
+      (lambda (h)
+        (eq (org-element-property :todo-type h)
+            'todo))
+      nil 'first-match))
+  (defun roam-extra:update-todo-tag ()
+    "Update TODO tag in the current buffer."
+    (when (and (not (active-minibuffer-window))
+               (org-roam-file-p))
+      (org-with-point-at 1
+        (let* ((tags (roam-extra:get-filetags))
+               (is-todo (roam-extra:todo-p)))
+          (cond ((and is-todo (not (seq-contains-p tags "todo")))
+                 (roam-extra:add-filetag "todo"))
+                ((and (not is-todo) (seq-contains-p tags "todo"))
+                 (roam-extra:del-filetag "todo")))))))
+  (defun roam-extra:todo-files ()
+    "Return a list of roam files containing todo tag."
+    (org-roam-db-sync)
+    (let ((todo-nodes (seq-filter (lambda (n)
+                                    (seq-contains-p (org-roam-node-tags n) "todo"))
+                                  (org-roam-node-list))))
+      (seq-uniq (seq-map #'org-roam-node-file todo-nodes))))
+
+  (defun roam-extra:update-todo-files (&rest _)
+    "Update the value of `org-agenda-files'."
+    (setq org-agenda-files (roam-extra:todo-files)))
+  (add-hook 'find-file-hook #'roam-extra:update-todo-tag)
+  (add-hook 'before-save-hook #'roam-extra:update-todo-tag)
+  (advice-add 'org-agenda :before #'roam-extra:update-todo-files)
+#+end_src
+
+#+begin_src emacs-lisp
+  (setq org-agenda-file-regexp "\\`[^.].*\\.org\\(\\.gpg\\)?\\'")
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "HACK(h)" "|" "DONE(d)" )
+          (sequence "NEXT(n)" "WAIT(w)" "START(s)" "|" "KILL(k)" )
+          (sequence "PROJECT(p)" "|")
+          (sequence "MEDIA(m)" "|" "WATCHED(a)")
+          ))
+#+end_src
+
+*** Org Roam
 #+BEGIN_SRC emacs-lisp
     (use-package org-roam :config
       (setq org-roam-directory (file-truename "/home/skye/Notes"))
@@ -391,6 +475,7 @@ purpose.
       (define-key mode-specific-map (kbd "o r") 'org-roam-node-find)
       (define-key mode-specific-map (kbd "o c") 'org-roam-capture)
       (define-key mode-specific-map (kbd "o i") 'org-id-get-create)
+      (define-key mode-specific-map (kbd "r w") 'org-roam-refile)
       (define-key mode-specific-map (kbd "o a") 'org-agenda)
       (define-key org-mode-map (kbd "C-c r n") 'org-roam-capture)
       (define-key org-mode-map (kbd "C-c r t a") 'org-roam-tag-add)
@@ -436,30 +521,143 @@ purpose.
 
 #+END_SRC
 
-*** Agenda
+**** Don't bother with nodes with the HIDE tag
+
+Primarily this is used for nodes that need an ID for attachments, but that shouldn't be
+used as actual nodes.
+
 #+begin_src emacs-lisp
-  (setq org-agenda-files (list org-roam-directory))
-  (setq org-agenda-file-regexp "\\`[^.].*\\.org\\(\\.gpg\\)?\\'")
-  (setq org-todo-keywords
-        '((sequence "TODO(t)" "HACK(h)" "|" "DONE(d)" )
-          (sequence "NEXT(n)" "WAIT(w)" "START(s)" "|" "KILL(k)" )
-          (sequence "PROJECT(p)" "|")
-          (sequence "MEDIA(m)" "|" "WATCHED(a)")
-          ))
+(setq org-roam-db-node-include-function
+      (lambda ()
+        (not (member "HIDE" (org-get-tags)))))
 #+end_src
 
-#+RESULTS:
-: \`[^.].*\.org\(\.gpg\)?\'
+*** Org Exporting
+**** Project Publishing Configuration
+#+begin_src emacs-lisp
+  (setq wiki-export-directory "/srv/pub/")
+#+end_src
+***** Configuration for ID resolution
+These magic words let org publish ID links correctly.
+#+begin_src emacs-lisp
+  (require 'find-lisp)
+  (setq org-id-extra-files (find-lisp-find-files org-roam-directory "\.org$"))
+#+end_src
+***** Backlinks
+The following strings are used to generate backlinks on export, taken from [[id:06203980-765f-4afc-807f-65de058c1a46][doubleloop]].
 
-** Programming language support and utilities
-*** Org Babel
+Set "org-export-do-backlinks" to non-nil to activate this feature.
+#+begin_src emacs-lisp
+  (setq org-export-do-backlinks nil)
+  (defun collect-backlinks-string (backend)
+    "Insert backlinks into the end of the org file before parsing it."
+    (when org-export-do-backlinks
+      (when (org-roam-node-at-point)
+        (goto-char (point-max))
+        ;; Add a new header for the references
+        (insert "\n* Backlinks \n:PROPERTIES:\n:HTML_CONTAINER_CLASS: backlinks\n:END:\n")
+        (let* ((backlinks (org-roam-backlinks-get (org-roam-node-at-point))))
+          (dolist (backlink backlinks)
+            (let* ((source-node (org-roam-backlink-source-node backlink))
+                   (point (org-roam-backlink-point backlink)))
+              (insert
+               (format "- [[./%s][%s]]\n"
+                       (file-name-nondirectory (org-roam-node-file source-node))
+                       (org-roam-node-title source-node)))))))))
+
+  (defun org-roam--backlinks-list (file)
+    (if (org-roam-file-p file)
+        (--reduce-from
+         (concat acc (format "- [[file:%s][%s]\n"
+                             (file-relative-name (car it) org-roam-directory)
+                             (org-roam-db--get-title (car it))))
+         "" (org-roam-db-query [:select [source] :from links :where (= dest $s1)] file))
+      ""))
+
+  (defun org-export-preprocessor (backend)
+    (let ((links (org-roam--backlinks-list (buffer-file-name))))
+      (unless (string= links "")
+        (save-excursion
+          (goto-char (point-max))
+          (insert (concat "\n* Elsewhere in the garden\n\nNotes that link to this note (AKA [[file:backlinks.org][backlinks]]).\n") links)))))
+
+  (add-hook 'org-export-before-processing-hook 'collect-backlinks-string)
+
+#+end_src
+
+***** Projects
+Often stolen from [[https://gitlab.com/ngm/commonplace/-/blob/master/publish.el][Neil M's commonplace]] with minor edits.
+#+begin_src emacs-lisp
+  (setq wiki-export-directory "~/Public/")
+  (setq org-publish-project-alist `(
+                                    ("wiki"
+                                     :components ("wiki-notes" "wiki-static"))
+                                    ("wiki-notes"
+                                     :base-directory ,org-roam-directory
+                                     :base-extension "org"
+                                     :publishing-directory ,wiki-export-directory
+                                     :publishing-function org-html-publish-to-html
+                                     :recursive t
+                                     ;; :headline-levels 4
+                                     :with-toc t
+                                     :html-doctype "html5"
+                                     ;; :html-preamble ,commonplace/preamble
+                                     ;; :html-postamble ,commonplace/postamble
+                                     ;; :html-head-include-scripts nil
+                                     ;; :html-head-include-default-style nil
+                                     :html-link-home "/"
+                                     ;; This will directly include the style into the HTML, making it much more portable.
+                                     :html-head-extra ,(concat "<style>" (with-temp-buffer (insert-file-contents (concat org-roam-directory "/style/style.css")  ) (buffer-string)) "</style>")
+                                     :html-container "section"
+                                     :htmlized-source nil
+                                     :auto-sitemap t
+                                     :section-numbers nil
+                                     :exclude "private"
+                                     :sitemap-title "Recent changes"
+                                     :sitemap-sort-files anti-chronologically
+                                     :sitemap-filename "index.org"
+                                     ;; :html-self-link-headlines t
+                                     )
+                                    ("wiki-static"
+                                     :base-directory ,org-roam-directory
+                                     :base-extension "scss\\|css\\|js\\|png\\|jpg\\|gif\\|svg\\|svg\\|json\\|pdf\\|ttf\\|bib"
+                                     :publishing-directory ,wiki-export-directory
+                                     :exclude "node_modules"
+                                     :recursive t
+                                     :publishing-function org-publish-attachment)
+#+end_src
+
+****** Ending
+#+begin_src emacs-lisp
+  ))
+#+end_src
+
+***** Publish Key-binds
+- Note taken on [2022-04-12 Tue 14:16]
+[[id:77c8197f-3175-4829-b0d8-41805003442a][Spacemacs]] doesn't seem to offer any easy org-roam keybinds for publishing, so I added some!
+#+begin_src emacs-lisp
+  (defun org-publish-extra-rebuild (name) "Rebuild the given project completely" (interactive)
+         (list (org-publish-remove-all-timestamps) (org-publish name t)))
+  (defun org-publish-force-wiki () "Force rebuild the wiki project" (interactive)
+         (org-publish-extra-rebuild "wiki"))
+
+  (define-key org-mode-map (kbd "C-c r p p") 'org-publish-current-file)
+  (define-key org-mode-map (kbd "C-c r p P") 'org-publish-current-project)
+#+end_src
+Force publish is intentionally signficantly harder to execute, as to avoid running it by accident.
+#+begin_src emacs-lisp
+  (define-key org-mode-map (kbd "C-c r p C-f") 'org-publish-force-wiki)
+#+end_src
+
+***** Programming language support and utilities
+****** Org Babel
 #+BEGIN_SRC emacs-lisp
   (org-babel-do-load-languages
    'org-babel-load-languages
-   '((scheme . t)(python . t)(haskell . t)(R . t)))
+   '((python . t)(haskell . t)(R . t)))
 #+END_SRC
 
-*** Company for auto-completion
+****** Company for auto-completion
 Use ~C-n~ and ~C-p~ to navigate the tooltip.
 #+BEGIN_SRC emacs-lisp
   (use-package company
@@ -474,19 +672,19 @@ Use ~C-n~ and ~C-p~ to navigate the tooltip.
                               company-echo-metadata-frontend)
           )
 
-    (add-to-list 'company-backends 'company-capf)
+    (add-to-list 'company-backends 'company-capf 'company-ispell)
     (define-key company-active-map (kbd "C-n") 'company-select-next)
     (define-key company-active-map (kbd "C-p") 'company-select-previous))
   (add-hook 'after-init-hook 'global-company-mode)
 #+END_SRC
 
-*** Flycheck
+****** Flycheck
 A modern on-the-fly syntax checking extension -- absolute essential
 #+BEGIN_SRC emacs-lisp
   (use-package flycheck :config (global-flycheck-mode +1))
 #+END_SRC
 
-*** Flyspell
+****** Flyspell
 #+BEGIN_SRC emacs-lisp
   (setq flyspell-issue-message-flag nil)
   (dolist (hook '(text-mode-hook org-mode-hook))
@@ -495,7 +693,7 @@ A modern on-the-fly syntax checking extension -- absolute essential
     (add-hook hook (lambda () (flyspell-mode -1))))
 #+END_SRC
 
-*** LanguageTool
+****** LanguageTool
 A tool to check grammar and such things, very useful if you're using emacs for essays.
 
 #+begin_src emacs-lisp
@@ -508,14 +706,14 @@ A tool to check grammar and such things, very useful if you're using emacs for e
 
 #+end_src
 
-*** Org Mode
+****** Org Mode
 Some minimal org mode tweaks: org-bullets gives our headings (h1, h2,
 h3...) a more visually pleasing look.
 #+BEGIN_SRC emacs-lisp
   (use-package org-bullets :hook (org-mode . org-bullets-mode))
 #+END_SRC
 
-*** Useful major modes
+****** Useful major modes
 Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/TSX/JSON.
 #+BEGIN_SRC emacs-lisp
   (use-package geiser-racket :ensure t)
@@ -524,7 +722,6 @@ Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/T
   (use-package rustic)
   (use-package markdown-mode
     :hook (markdown-mode . visual-line-mode))
-  (use-package quack)
   (use-package ess
     :ensure t
     :init (require 'ess-site))
@@ -542,10 +739,7 @@ Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/T
     (setq web-mode-content-types-alist '(("jsx" . "\\.js[x]?\\'"))))
 #+END_SRC
 
-#+RESULTS:
-: ((\.rs\' . rustic-mode) (\.odc\' . archive-mode) (\.odf\' . archive-mode) (\.odi\' . archive-mode) (\.otp\' . archive-mode) (\.odp\' . archive-mode) (\.otg\' . archive-mode) (\.odg\' . archive-mode) (\.ots\' . archive-mode) (\.ods\' . archive-mode) (\.odm\' . archive-mode) (\.ott\' . archive-mode) (\.odt\' . archive-mode) (\.json\' . web-mode) (\.tsx?\' . web-mode) (\.jsx?\' . web-mode) (\.css\' . web-mode) (\.html?\' . web-mode) (\.ccl\' . scheme-mode) (\.rkt\' . scheme-mode) (\.rktd\' . scheme-mode) (\.sch\' . scheme-mode) (\.scm\' . scheme-mode) (\.ss\' . scheme-mode) (\.stk\' . scheme-mode) (\.stklos\' . scheme-mode) (/\.mzschemerc\' . scheme-mode) (\.plt\' . quack-pltfile-mode) (\.[Ss][Aa][Ss]\' . SAS-mode) (\.Sout\' . S-transcript-mode) (\.[Ss]t\' . S-transcript-mode) (\.Rd\' . Rd-mode) (DESCRIPTION\' . conf-colon-mode) (/Makevars\(\.win\)?\' . makefile-mode) (\.[Rr]out\' . ess-r-transcript-mode) (CITATION\' . ess-r-mode) (NAMESPACE\' . ess-r-mode) (\.[rR]profile\' . ess-r-mode) (\.[rR]\' . ess-r-mode) (/R/.*\.q\' . ess-r-mode) (\.[Jj][Aa][Gg]\' . ess-jags-mode) (\.[Bb][Mm][Dd]\' . ess-bugs-mode) (\.[Bb][Oo][Gg]\' . ess-bugs-mode) (\.[Bb][Uu][Gg]\' . ess-bugs-mode) (go\.work\' . go-dot-work-mode) (go\.mod\' . go-dot-mod-mode) (\.go\' . go-mode) (\.hsc\' . haskell-mode) (\.l[gh]s\' . haskell-literate-mode) (\.hsig\' . haskell-mode) (\.[gh]s\' . haskell-mode) (\.cabal\'\|/cabal\.project\|/\.cabal/config\' . haskell-cabal-mode) (\.chs\' . haskell-c2hs-mode) (\.ghci\' . ghci-script-mode) (\.dump-simpl\' . ghc-core-mode) (\.hcr\' . ghc-core-mode) (/git-rebase-todo\' . git-rebase-mode) (\.\(?:md\|markdown\|mkd\|mdown\|mkdn\|mdwn\)\' . markdown-mode) (\.pp\' . puppet-mode) (\.\(e?ya?\|ra\)ml\' . yaml-mode) (\.gpg\(~\|\.~[0-9]+~\)?\' nil epa-file) (\.elc\' . elisp-byte-code-mode) (\.zst\' nil jka-compr) (\.dz\' nil jka-compr) (\.xz\' nil jka-compr) (\.lzma\' nil jka-compr) (\.lz\' nil jka-compr) (\.g?z\' nil jka-compr) (\.bz2\' nil jka-compr) (\.Z\' nil jka-compr) (\.vr[hi]?\' . vera-mode) (\(?:\.\(?:rbw?\|ru\|rake\|thor\|jbuilder\|rabl\|gemspec\|podspec\)\|/\(?:Gem\|Rake\|Cap\|Thor\|Puppet\|Berks\|Brew\|Vagrant\|Guard\|Pod\)file\)\' . ruby-mode) (\.re?st\' . rst-mode) (\.py[iw]?\' . python-mode) (\.m\' . octave-maybe-mode) (\.less\' . less-css-mode) (\.scss\' . scss-mode) (\.awk\' . awk-mode) (\.\(u?lpc\|pike\|pmod\(\.in\)?\)\' . pike-mode) (\.idl\' . idl-mode) (\.java\' . java-mode) (\.m\' . objc-mode) (\.ii\' . c++-mode) (\.i\' . c-mode) (\.lex\' . c-mode) (\.y\(acc\)?\' . c-mode) (\.h\' . c-or-c++-mode) (\.c\' . c-mode) (\.\(CC?\|HH?\)\' . c++-mode) (\.[ch]\(pp\|xx\|\+\+\)\' . c++-mode) (\.\(cc\|hh\)\' . c++-mode) (\.\(bat\|cmd\)\' . bat-mode) (\.[sx]?html?\(\.[a-zA-Z_]+\)?\' . mhtml-mode) (\.svgz?\' . image-mode) (\.svgz?\' . xml-mode) (\.x[bp]m\' . image-mode) (\.x[bp]m\' . c-mode) (\.p[bpgn]m\' . image-mode) (\.tiff?\' . image-mode) (\.gif\' . image-mode) (\.png\' . image-mode) (\.jpe?g\' . image-mode) (\.te?xt\' . text-mode) (\.[tT]e[xX]\' . tex-mode) (\.ins\' . tex-mode) (\.ltx\' . latex-mode) (\.dtx\' . doctex-mode) (\.org\' . org-mode) (\.dir-locals\(?:-2\)?\.el\' . lisp-data-mode) (eww-bookmarks\' . lisp-data-mode) (tramp\' . lisp-data-mode) (/archive-contents\' . lisp-data-mode) (places\' . lisp-data-mode) (\.emacs-places\' . lisp-data-mode) (\.el\' . emacs-lisp-mode) (Project\.ede\' . emacs-lisp-mode) (\.\(scm\|stk\|ss\|sch\)\' . scheme-mode) (\.l\' . lisp-mode) (\.li?sp\' . lisp-mode) (\.[fF]\' . fortran-mode) (\.for\' . fortran-mode) (\.p\' . pascal-mode) (\.pas\' . pascal-mode) (\.\(dpr\|DPR\)\' . delphi-mode) (\.\([pP]\([Llm]\|erl\|od\)\|al\)\' . perl-mode) (Imakefile\' . makefile-imake-mode) (Makeppfile\(?:\.mk\)?\' . makefile-makepp-mode) (\.makepp\' . makefile-makepp-mode) (\.mk\' . makefile-gmake-mode) (\.make\' . makefile-gmake-mode) ([Mm]akefile\' . makefile-gmake-mode) (\.am\' . makefile-automake-mode) (\.texinfo\' . texinfo-mode) (\.te?xi\' . texinfo-mode) (\.[sS]\' . asm-mode) (\.asm\' . asm-mode) (\.css\' . css-mode) (\.mixal\' . mixal-mode) (\.gcov\' . compilation-mode) (/\.[a-z0-9-]*gdbinit . gdb-script-mode) (-gdb\.gdb . gdb-script-mode) ([cC]hange\.?[lL]og?\' . change-log-mode) ([cC]hange[lL]og[-.][0-9]+\' . change-log-mode) (\$CHANGE_LOG\$\.TXT . change-log-mode) (\.scm\.[0-9]*\' . scheme-mode) (\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\' . sh-mode) (\.bash\' . sh-mode) (/PKGBUILD\' . sh-mode) (\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\' . sh-mode) (\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\' . sh-mode) (\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\' . sh-mode) (\.m?spec\' . sh-mode) (\.m[mes]\' . nroff-mode) (\.man\' . nroff-mode) (\.sty\' . latex-mode) (\.cl[so]\' . latex-mode) (\.bbl\' . latex-mode) (\.bib\' . bibtex-mode) (\.bst\' . bibtex-style-mode) (\.sql\' . sql-mode) (\(acinclude\|aclocal\|acsite\)\.m4\' . autoconf-mode) (\.m[4c]\' . m4-mode) (\.mf\' . metafont-mode) (\.mp\' . metapost-mode) (\.vhdl?\' . vhdl-mode) (\.article\' . text-mode) (\.letter\' . text-mode) (\.i?tcl\' . tcl-mode) (\.exp\' . tcl-mode) (\.itk\' . tcl-mode) (\.icn\' . icon-mode) (\.sim\' . simula-mode) (\.mss\' . scribe-mode) (\.f9[05]\' . f90-mode) (\.f0[38]\' . f90-mode) (\.indent\.pro\' . fundamental-mode) (\.\(pro\|PRO\)\' . idlwave-mode) (\.srt\' . srecode-template-mode) (\.prolog\' . prolog-mode) (\.tar\' . tar-mode) (\.\(arc\|zip\|lzh\|lha\|zoo\|[jew]ar\|xpi\|rar\|cbr\|7z\|squashfs\|ARC\|ZIP\|LZH\|LHA\|ZOO\|[JEW]AR\|XPI\|RAR\|CBR\|7Z\|SQUASHFS\)\' . archive-mode) (\.oxt\' . archive-mode) (\.\(deb\|[oi]pk\)\' . archive-mode) (\`/tmp/Re . text-mode) (/Message[0-9]*\' . text-mode) (\`/tmp/fol/ . text-mode) (\.oak\' . scheme-mode) (\.sgml?\' . sgml-mode) (\.x[ms]l\' . xml-mode) (\.dbk\' . xml-mode) (\.dtd\' . sgml-mode) (\.ds\(ss\)?l\' . dsssl-mode) (\.js[mx]?\' . javascript-mode) (\.har\' . javascript-mode) (\.json\' . javascript-mode) (\.[ds]?va?h?\' . verilog-mode) (\.by\' . bovine-grammar-mode) (\.wy\' . wisent-grammar-mode) ([:/\]\..*\(emacs\|gnus\|viper\)\' . emacs-lisp-mode) (\`\..*emacs\' . emacs-lisp-mode) ([:/]_emacs\' . emacs-lisp-mode) (/crontab\.X*[0-9]+\' . shell-script-mode) (\.ml\' . lisp-mode) (\.ld[si]?\' . ld-script-mode) (ld\.?script\' . ld-script-mode) (\.xs\' . c-mode) (\.x[abdsru]?[cnw]?\' . ld-script-mode) (\.zone\' . dns-mode) (\.soa\' . dns-mode) (\.asd\' . lisp-mode) (\.\(asn\|mib\|smi\)\' . snmp-mode) (\.\(as\|mi\|sm\)2\' . snmpv2-mode) (\.\(diffs?\|patch\|rej\)\' . diff-mode) (\.\(dif\|pat\)\' . diff-mode) (\.[eE]?[pP][sS]\' . ps-mode) (\.\(?:PDF\|DVI\|OD[FGPST]\|DOCX\|XLSX?\|PPTX?\|pdf\|djvu\|dvi\|od[fgpst]\|docx\|xlsx?\|pptx?\)\' . doc-view-mode-maybe) (configure\.\(ac\|in\)\' . autoconf-mode) (\.s\(v\|iv\|ieve\)\' . sieve-mode) (BROWSE\' . ebrowse-tree-mode) (\.ebrowse\' . ebrowse-tree-mode) (#\*mail\* . mail-mode) (\.g\' . antlr-mode) (\.mod\' . m2-mode) (\.ses\' . ses-mode) (\.docbook\' . sgml-mode) (\.com\' . dcl-mode) (/config\.\(?:bat\|log\)\' . fundamental-mode) (/\.\(authinfo\|netrc\)\' . authinfo-mode) (\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\' . conf-mode) (\.la\' . conf-unix-mode) (\.ppd\' . conf-ppd-mode) (java.+\.conf\' . conf-javaprop-mode) (\.properties\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-javaprop-mode) (\.toml\' . conf-toml-mode) (\.desktop\' . conf-desktop-mode) (/\.redshift\.conf\' . conf-windows-mode) (\`/etc/\(?:DIR_COLORS\|ethers\|.?fstab\|.*hosts\|lesskey\|login\.?de\(?:fs\|vperm\)\|magic\|mtab\|pam\.d/.*\|permissions\(?:\.d/.+\)?\|protocols\|rpc\|services\)\' . conf-space-mode) (\`/etc/\(?:acpid?/.+\|aliases\(?:\.d/.+\)?\|default/.+\|group-?\|hosts\..+\|inittab\|ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\' . conf-mode) ([cC]hange[lL]og[-.][-0-9a-z]+\' . change-log-mode) (/\.?\(?:gitconfig\|gnokiirc\|hgrc\|kde.*rc\|mime\.types\|wgetrc\)\' . conf-mode) (/\.\(?:asound\|enigma\|fetchmail\|gltron\|gtk\|hxplayer\|mairix\|mbsync\|msmtp\|net\|neverball\|nvidia-settings-\|offlineimap\|qt/.+\|realplayer\|reportbug\|rtorrent\.\|screen\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\' . conf-mode) (/\.\(?:gdbtkinit\|grip\|mpdconf\|notmuch-config\|orbital/.+txt\|rhosts\|tuxracer/options\)\' . conf-mode) (/\.?X\(?:default\|resource\|re\)s\> . conf-xdefaults-mode) (/X11.+app-defaults/\|\.ad\' . conf-xdefaults-mode) (/X11.+locale/.+/Compose\' . conf-colon-mode) (/X11.+locale/compose\.dir\' . conf-javaprop-mode) (\.~?[0-9]+\.[0-9][-.0-9]*~?\' nil t) (\.\(?:orig\|in\|[bB][aA][kK]\)\' nil t) ([/.]c\(?:on\)?f\(?:i?g\)?\(?:\.[a-zA-Z0-9._-]+\)?\' . conf-mode-maybe) (\.[1-9]\' . nroff-mode) (\.art\' . image-mode) (\.avs\' . image-mode) (\.bmp\' . image-mode) (\.cmyk\' . image-mode) (\.cmyka\' . image-mode) (\.crw\' . image-mode) (\.dcr\' . image-mode) (\.dcx\' . image-mode) (\.dng\' . image-mode) (\.dpx\' . image-mode) (\.fax\' . image-mode) (\.hrz\' . image-mode) (\.icb\' . image-mode) (\.icc\' . image-mode) (\.icm\' . image-mode) (\.ico\' . image-mode) (\.icon\' . image-mode) (\.jbg\' . image-mode) (\.jbig\' . image-mode) (\.jng\' . image-mode) (\.jnx\' . image-mode) (\.miff\' . image-mode) (\.mng\' . image-mode) (\.mvg\' . image-mode) (\.otb\' . image-mode) (\.p7\' . image-mode) (\.pcx\' . image-mode) (\.pdb\' . image-mode) (\.pfa\' . image-mode) (\.pfb\' . image-mode) (\.picon\' . image-mode) (\.pict\' . image-mode) (\.rgb\' . image-mode) (\.rgba\' . image-mode) (\.tga\' . image-mode) (\.wbmp\' . image-mode) (\.webp\' . image-mode) (\.wmf\' . image-mode) (\.wpg\' . image-mode) (\.xcf\' . image-mode) (\.xmp\' . image-mode) (\.xwd\' . image-mode) (\.yuv\' . image-mode) (\.tgz\' . tar-mode) (\.tbz2?\' . tar-mode) (\.txz\' . tar-mode) (\.tzst\' . tar-mode))
-
-*** Github Copilot
+****** Github Copilot
 #+BEGIN_SRC emacs-lisp
                                           ; (use-package copilot
                                           ;   :straight (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
@@ -560,27 +754,42 @@ Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/T
                                           ;   (define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
 #+END_SRC
 
-*** Mediawiki
+****** Mediawiki
 A major mode that lets you edit mediawiki instances.
 #+begin_src emacs-lisp
   (use-package mediawiki)
 #+end_src
 
-**** Mediawiki Org Export
+******* Mediawiki Org Export
 Allows org to export to mediawiki.
 
 #+begin_src emacs-lisp
   (use-package ox-mediawiki)
 #+end_src
 
-*** LSP
+****** C++
+#+begin_src emacs-lisp
+  (use-package clang-format)
+  (setq clang-format-style "file")
+  (use-package cc-mode :config
+  (define-key c++-mode-map (kbd "C-M-\\") 'clang-format-buffer))
+#+end_src
+
+#+RESULTS:
+: t
+
+****** LSP
 #+BEGIN_SRC emacs-lisp
   (use-package lsp-mode
     :hook
     ((python-mode . lsp)
+     (c++-mode . lsp)
      (lsp-mode . lsp-enable-which-key-integration))
+
     :bind (:map evil-normal-state-map
-                ("gh" . lsp-describe-thing-at-point)))
+                ("gh" . lsp-describe-thing-at-point))
+    :config
+    (define-key lsp-mode-map (kbd "C-c C-l") lsp-command-map))
 
   (use-package lsp-ui
     :config (setq lsp-ui-sideline-show-hover t
@@ -601,10 +810,10 @@ Allows org to export to mediawiki.
 #+END_SRC
 
 #+RESULTS:
-: lsp-ui-peek-find-references
+: lsp-describe-thing-at-point
 
-** Miscellaneous
-*** Diminish minor modes
+***** Miscellaneous
+****** Diminish minor modes
 The diminish package is used to hide unimportant minor modes in the
 modeline. It provides the ~:diminish~ keyword we've been using in
 other use-package declarations.
@@ -612,7 +821,7 @@ other use-package declarations.
   (use-package diminish
     :demand t)
 #+END_SRC
-*** Which-key
+****** Which-key
 Provides us with hints on available keystroke combinations.
 #+BEGIN_SRC emacs-lisp
   (use-package which-key
@@ -622,26 +831,34 @@ Provides us with hints on available keystroke combinations.
     (setq which-key-idle-delay 0.4
           which-key-idle-secondary-delay 0.4))
 #+END_SRC
-*** Configure PATH on macOS
+****** Configure PATH on macOS
 #+BEGIN_SRC emacs-lisp
   (use-package exec-path-from-shell
     :config (when (memq window-system '(mac ns x))
               (exec-path-from-shell-initialize)))
 #+END_SRC
-*** Yaml Mode
+****** Yaml Mode
 #+BEGIN_SRC emacs-lisp
   (use-package yaml-mode)
   (use-package puppet-mode)
 #+END_SRC
-*** Dark/light handling
+****** Dark/light handling
 #+BEGIN_SRC emacs-lisp
   (defun +theme-dark ()
     (load-theme 'doom-dracula t))
   (defun +theme-light ()
     (load-theme 'doom-solarized-light t))
 #+END_SRC
-*** Keychain support
+****** Keychain support
 #+BEGIN_SRC emacs-lisp
 (use-package keychain-environment)
 (keychain-refresh-environment)
 #+END_SRC
+** Pseudocode-mode
+
+#+begin_src emacs-lisp
+(straight-use-package
+ '(pseudocode-mode :type git :host github :repo "skyethepinkcat/pseudocode-mode"))
+
+
+#+end_src
