@@ -4,4 +4,6 @@
 !.gitignore
 !init.el
 !config.org
+!custom.el
+!pseudocode.el
 !themes/
