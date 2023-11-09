@@ -789,7 +789,8 @@ Allows org to export to mediawiki.
     :bind (:map evil-normal-state-map
                 ("gh" . lsp-describe-thing-at-point))
     :config
-    (define-key lsp-mode-map (kbd "C-c C-l") lsp-command-map))
+    (define-key lsp-mode-map (kbd "C-c C-l") lsp-command-map)
+    (define-key lsp-mode-map (kbd "C-c C-c") 'lsp-execute-code-action))
 
   (use-package lsp-ui
     :config (setq lsp-ui-sideline-show-hover t
@@ -810,7 +811,7 @@ Allows org to export to mediawiki.
 #+END_SRC
 
 #+RESULTS:
-: lsp-describe-thing-at-point
+: lsp-ui-peek-find-references
 
 ***** Miscellaneous
 ****** Diminish minor modes
