@@ -1,5 +1,4 @@
-#+TITLE: Yay-Evil distro by Ian Y.E. Pan
-#+Author: Ian Y.E. Pan
+#+TITLE: Yay-Evil distro by Ian Y.E. Pan #+Author: Ian Y.E. Pan
 #+Date: 2019
 Welcome! This Emacs "distro" is based on my personal Emacs configuration (on GNU Emacs
 26.3). It's unopinionated and was created for general use in mind. The package settings
@@ -467,9 +466,12 @@ purpose.
 
 *** Org Roam
 #+BEGIN_SRC emacs-lisp
+  (require 'ox-md)
     (use-package org-roam :config
       (setq org-roam-directory (file-truename "/home/skye/Notes"))
       (org-roam-db-autosync-mode)
+      (setq org-startup-indented "Globally")
+
       (setq org-roam-completion-system 'ido)
       (define-key mode-specific-map (kbd "r f") 'org-roam-node-find)
       (define-key mode-specific-map (kbd "o r") 'org-roam-node-find)
@@ -740,19 +742,22 @@ Markdown mode and Web mode, the latter covers our usages of HTML/CSS/JS/JSX/TS/T
 #+END_SRC
 
 ****** Github Copilot
-#+BEGIN_SRC emacs-lisp
-                                          ; (use-package copilot
-                                          ;   :straight (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
-                                          ;   :ensure t)
-                                          ; ;; you can utilize :map :hook and :config to customize copilot
-                                          ;   (add-hook 'prog-mode-hook 'copilot-mode)
-                                          ;   (with-eval-after-load 'company
-                                          ;   ;; disable inline previews
-                                          ;   (delq 'company-preview-if-just-one-frontend company-frontends))
+#+BEGIN_SRC emacs-lisp :tangle nil
+  (use-package copilot
+    :straight (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el"))
+    :ensure t)
+  ;; you can utilize :map :hook and :config to customize copilot
+  (add-hook 'prog-mode-hook 'copilot-mode)
+  (with-eval-after-load 'company
+    ;; disable inline previews
+    (delq 'company-preview-if-just-one-frontend company-frontends))
 
-                                          ;   (define-key copilot-completion-map (kbd "<tab>") 'copilot-accept-completion)
-                                          ;   (define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
+  (define-key copilot-completion-map (kbd "<tab>") 'copilot-accept-completion)
+  (define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
 #+END_SRC
+
+#+RESULTS:
+: copilot-accept-completion
 
 ****** Mediawiki
 A major mode that lets you edit mediawiki instances.
@@ -772,6 +777,11 @@ Allows org to export to mediawiki.
   (use-package clang-format)
   (setq clang-format-style "file")
   (use-package cc-mode :config
+    (add-hook 'c-mode-common-hook
+    (lambda()
+  (setq ff-search-directories '("../" "../lib/" "../include/" "."))
+
+        (local-set-key  (kbd "C-c h") 'ff-find-other-file)))
   (define-key c++-mode-map (kbd "C-M-\\") 'clang-format-buffer))
 #+end_src
 
@@ -783,6 +793,7 @@ Allows org to export to mediawiki.
   (use-package lsp-mode
     :hook
     ((python-mode . lsp)
+     (c-mode . lsp)
      (c++-mode . lsp)
      (lsp-mode . lsp-enable-which-key-integration))
 
@@ -862,4 +873,10 @@ Provides us with hints on available keystroke combinations.
  '(pseudocode-mode :type git :host github :repo "skyethepinkcat/pseudocode-mode"))
 
 
+#+end_src
+** Yasnippet
+#+begin_src emacs-lisp
+    (use-package yasnippet-snippets
+  :config (yas-global-mode 1)
+  )
 #+end_src
